@@ -15,13 +15,13 @@ def tokenize(text):
     text = text.lower()
     tokens = re.findall(r"[a-zA-Zəğıöüşç]+", text)
     return tokens
-all_tokens = []
+allTokens = []
 for t in texts:
-    all_tokens.extend(tokenize(t))
+    allTokens.extend(tokenize(t))
 
-tokenCount = len(all_tokens)                 
-typeCount = len(set(all_tokens))              
-freq = Counter(all_tokens) 
+tokenCount = len(allTokens)                 
+typeCount = len(set(allTokens))              
+freq = Counter(allTokens) 
 print("Number of tokens:", tokenCount)
 print("Number of types:", typeCount)
 print("Top 30 frequent words:", freq.most_common(30)) 
@@ -31,7 +31,7 @@ Ns = []
 Vs = []
 seen = set()
 N = 0
-for tok in all_tokens:
+for tok in allTokens:
     N += 1
     seen.add(tok)
     Ns.append(N)
@@ -40,20 +40,20 @@ logN = [math.log(n) for n in Ns if n > 0]
 logV = [math.log(v) for v in Vs if v > 0]
 
 n = len(logN)
-sum_x = sum(logN)
-sum_y = sum(logV)
-sum_xx = sum(x*x for x in logN)
-sum_xy = sum(x*y for x,y in zip(logN,logV))
+sumX = sum(logN)
+sumY = sum(logV)
+sumXx = sum(x*x for x in logN)
+sumXy = sum(x*y for x,y in zip(logN,logV))
 
-beta = (n*sum_xy - sum_x*sum_y) / (n*sum_xx - sum_x**2)
-logk = (sum_y - beta*sum_x) / n
+beta = (n*sumXy - sumX*sumY) / (n*sumXx - sumX**2)
+logk = (sumY - beta*sumX) / n
 k = math.exp(logk)
 
 print("Heaps Law k:", k)
 print("Heaps Law beta:", beta)
 
 
-def get_stats(vocab):
+def getStats(vocab):
     pairs = defaultdict(int)
     for word, freq in vocab.items():
         symbols = word.split()
@@ -61,26 +61,27 @@ def get_stats(vocab):
             pairs[(symbols[i], symbols[i+1])] += freq
     return pairs
 
-def merge_vocab(pair, v_in):
-    v_out = {}
+def mergeVocabulary(pair, vIn):
+    vOut = {}
     bigram = ' '.join(pair)
     replacement = ''.join(pair)
-    for word in v_in:
-        new_word = word.replace(bigram, replacement)
-        v_out[new_word] = v_in[word]
-    return v_out
+    for word in vIn:
+        newWord = word.replace(bigram, replacement)
+        vOut[newWord] = vIn[word]
+    return vOut
 vocab = Counter()
-for w in all_tokens:
+for w in allTokens:
     vocab[" ".join(list(w)) + " </w>"] += 1
 
 num_merges = 100
 for i in range(num_merges):
-    pairs = get_stats(vocab)
+    pairs = getStats(vocab)
     if not pairs:
         break
     best = max(pairs, key=pairs.get)
-    vocab = merge_vocab(best, vocab)
+    vocab = mergeVocabulary(best, vocab)
 
 print("BPE Vocabulary size:", len(vocab))
+
 
 
