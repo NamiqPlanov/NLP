@@ -8,7 +8,7 @@ from collections import defaultdict
 import re
 
 
-data = pd.read_csv("tales.csv")
+data = pd.read_csv("project1/tales.csv")
 texts = data["text"].dropna().astype(str).tolist()
 
 def tokenize(text):
@@ -85,3 +85,53 @@ print("BPE Vocabulary size:", len(vocab))
 
 
 
+def sentenceSegment(text):
+    text = text.strip()
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    return sentences
+testText = texts[0]
+sentences = sentenceSegment(testText)
+
+for s in sentences[:10]:
+    print(s)
+
+
+def levenshtein(a, b):
+    dp = [[0]*(len(b)+1) for _ in range(len(a)+1)]
+    for i in range(len(a)+1): dp[i][0] = i
+    for j in range(len(b)+1): dp[0][j] = j
+
+    for i in range(1,len(a)+1):
+        for j in range(1,len(b)+1):
+            cost = 0 if a[i-1]==b[j-1] else 1
+            dp[i][j] = min(dp[i-1][j]+1,
+                           dp[i][j-1]+1,
+                           dp[i-1][j-1]+cost)
+    return dp[-1][-1]
+dictionary = set(allTokens)
+def spellCheck(word, k=3):
+    candidates = []
+    for w in dictionary:
+        d = levenshtein(word, w)
+        if d <= 2:
+            candidates.append((w,d))
+    return sorted(candidates, key=lambda x: x[1])[:k]
+print(spellCheck("qoymrd")) 
+confMatrix = defaultdict(int)
+def weighted_levenshtein(a, b, weights):
+    dp = [[0]*(len(b)+1) for _ in range(len(a)+1)]
+    for i in range(len(a)+1): dp[i][0] = i
+    for j in range(len(b)+1): dp[0][j] = j
+
+    for i in range(1,len(a)+1):
+        for j in range(1,len(b)+1):
+            if a[i-1]==b[j-1]:
+                cost = 0
+            else:
+                cost = weights.get((a[i-1], b[j-1]), 1)
+                confMatrix[(a[i-1], b[j-1])] += 1
+
+            dp[i][j] = min(dp[i-1][j]+1,
+                           dp[i][j-1]+1,
+                           dp[i-1][j-1]+cost)
+    return dp[-1][-1]
