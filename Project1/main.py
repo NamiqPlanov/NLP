@@ -7,7 +7,7 @@ import re
 import csv
 import numpy as np
 
-data = pd.read_csv("Project1/Project1/tales.csv")
+data = pd.read_csv("Project1/tales.csv")
 texts = data["text"].dropna().astype(str).tolist()
 
 AZ_LETTERS = r"A-Za-zƏəİıÖöÜüĞğŞşÇç"
@@ -517,7 +517,7 @@ def export_confusion_matrix(confusions, path):
 
 conf_matrix = {c:{w:0 for w in AZ_ALPHABET} for c in AZ_ALPHABET}
 
-with open("Project1/Project1/az_confusion_matrix.csv", encoding="utf-8") as f:
+with open("Project1/az_confusion_matrix.csv", encoding="utf-8") as f:
     reader = csv.reader(f)
     header = next(reader)
     for row in reader:
