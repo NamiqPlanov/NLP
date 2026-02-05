@@ -6,6 +6,8 @@ import math
 import re
 import csv
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 data = pd.read_csv("Project1/tales.csv")
 texts = data["text"].dropna().astype(str).tolist()
@@ -47,8 +49,8 @@ tokenCount = len(allTokens)
 typeCount = len(set(allTokens))              
 freq = Counter(allTokens) 
 
-save_tokens(allTokens, "space_based_tokens.txt")
-save_dictionary(freq, "dictionary.tsv")
+save_tokens(allTokens, "Project1/space_based_tokens.txt")
+save_dictionary(freq, "Project1/dictionary.tsv")
 
 print(printer)
 print("1. Tokenization")
@@ -88,7 +90,20 @@ print(printer)
 print("Heaps Law k:", k)
 print("Heaps Law beta:", beta)
 
+y_hat = [beta * x + logk for x in logN]
+
+plt.figure()
+plt.scatter(logN, logV)
+plt.plot(logN, y_hat)
+
+plt.xlabel("log(N)")
+plt.ylabel("log(V)")
+plt.title("Heaps' Law (log-log plot)")
+
+plt.show()
+
 # Task 3
+
 print(printer)
 print("3. BPE Tokenization")
 print(printer)
@@ -168,45 +183,25 @@ print("\nTop 50 BPE tokens:\n{}".format(bpeTokenFreq.most_common(50)))
 def sentenceSegmentAZ(text):
     text = re.sub(r"\s+", " ", text)
 
-    # Hyphenation inside words (E.g. ba- lıqları)
     text = re.sub(r'(\w)-\s*(\w)', r'\1\2', text)
 
-    # Normalize quotes
     text = text.replace("“", '"').replace("”", '"')
 
-    # Normalize dialogue dashes
-    text = re.sub(r'\s*[-–—]\s*', ' — ', text)
+    text = re.sub(r'(^|\n)\s*[-–—]\s*', r'\1— ', text)
+    text = re.sub(r'\s+[-–—]\s+', ' — ', text)
 
-    # Missing space after sentence-ending punctuation
-    text = re.sub(
-        r'([.!?])(?=[A-ZƏÖÜĞŞÇ])',
-        r'\1 ',
-        text
-    )
+    text = re.sub(r'([.!?])(?=[A-ZƏÖÜĞİŞÇ])', r'\1 ', text)
 
-    az_abbr = [
-        "məs", "və s", "b.e", "prof", "dr", "akad",
-        "dos", "müəl", "müh", "müd", "ş"
-    ]
+    az_abbr = ["məs","və s","b.e","prof","dr","akad","dos","müəl","müh","müd","ş"]
 
     for abbr in az_abbr:
-        text = re.sub(
-            rf'\b{abbr}\.',
-            f'{abbr}<DOT>',
-            text,
-            flags=re.IGNORECASE
-        )
+        text = re.sub(rf'\b{abbr}\.', f'{abbr}<DOT>', text, flags=re.IGNORECASE)
 
-    text = re.sub(
-        r'(dedi|soruşdu|deyib dedi|deyərək dedi)\s*:\s*—?\s*',
-        r'\1:\n— ',
-        text,
-        flags=re.IGNORECASE
-    )
+    text = re.sub(r':\s*[-–—]?\s*', ':\n— ', text)
 
     sentences = re.split(
-        r'(?<=[.!?])\s+(?=[A-ZƏÖÜĞŞÇ])|'
-        r'(?<=:)\s*(?=—)|'
+        r'(?<=[.!?])\s+(?=[A-ZƏÖÜİĞŞÇ—])|'
+        r'(?<=[.!?])\s*(?=—)|'
         r'\n+',
         text
     )
@@ -214,11 +209,8 @@ def sentenceSegmentAZ(text):
     clean = []
     for s in sentences:
         s = s.replace("<DOT>", ".").strip()
-
-        if not re.search(r'[A-Za-zƏÖÜĞŞÇəöüğşç0-9]', s):
-            continue
-
-        clean.append(s)
+        if re.search(r'[A-Za-zƏÖİÜĞŞÇıəöüğşç0-9]', s):
+            clean.append(s)
 
     return clean
 
@@ -232,10 +224,11 @@ for text in texts:
     sentences = sentenceSegmentAZ(text)
     all_sentences.extend(sentences)
 
-# save_tokens(all_sentences, 'sentence_segmentation.txt')
+save_tokens(all_sentences, 'Project1/sentence_segmentation.txt')
 
 for s in all_sentences[:20]:
     print(s)
+
 
 
 # Task 5
