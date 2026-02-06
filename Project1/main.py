@@ -133,7 +133,7 @@ def mergePair(pair, vocab):
         newVocabulary[newWord] = vocab[word]
     return newVocabulary
 
-def trainBpe(vocab, numMerges=1000):
+def trainBpe(vocab, numMerges=3000):
     merges = []
     for i in range(numMerges):
         pairs = getPairStats(vocab)
@@ -232,18 +232,27 @@ for s in all_sentences[:20]:
 
 
 # Task 5
-def levenshtein(a, b):
-    dp = [[0]*(len(b)+1) for _ in range(len(a)+1)]
-    for i in range(len(a)+1): dp[i][0] = i
-    for j in range(len(b)+1): dp[0][j] = j
+# Task 5: Spell Checking (Fixed)
+# ===============================
 
-    for i in range(1,len(a)+1):
-        for j in range(1,len(b)+1):
-            cost = 0 if a[i-1]==b[j-1] else 2
-            dp[i][j] = min(dp[i-1][j]+1,
-                           dp[i][j-1]+1,
-                           dp[i-1][j-1]+cost)
+def levenshtein(a, b):
+    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
+
+    for i in range(len(a) + 1):
+        dp[i][0] = i
+    for j in range(len(b) + 1):
+        dp[0][j] = j
+
+    for i in range(1, len(a) + 1):
+        for j in range(1, len(b) + 1):
+            cost = 0 if a[i - 1] == b[j - 1] else 2
+            dp[i][j] = min(
+                dp[i - 1][j] + 1,      # delete
+                dp[i][j - 1] + 1,      # insert
+                dp[i - 1][j - 1] + cost  # substitute / match
+            )
     return dp
+
 
 def backtrace(a, b):
     dp = levenshtein(a, b)
@@ -252,31 +261,37 @@ def backtrace(a, b):
 
     while i > 0 or j > 0:
         if i > 0 and j > 0:
-            cost = 0 if a[i-1] == b[j-1] else 2
-            if dp[i][j] == dp[i-1][j-1] + cost:
+            cost = 0 if a[i - 1] == b[j - 1] else 2
+            if dp[i][j] == dp[i - 1][j - 1] + cost:
                 if cost == 0:
-                    operations.append(("match", a[i-1], b[j-1]))
+                    operations.append(("match", a[i - 1], b[j - 1]))
                 else:
-                    operations.append(("substitute", a[i-1], b[j-1]))
+                    operations.append(("substitute", a[i - 1], b[j - 1]))
                 i -= 1
                 j -= 1
                 continue
-        if i > 0 and dp[i][j] == dp[i-1][j] + 1:
-            operations.append(("delete", a[i-1], "-"))
+
+        if i > 0 and dp[i][j] == dp[i - 1][j] + 1:
+            operations.append(("delete", a[i - 1], "-"))
             i -= 1
             continue
-        if j > 0 and dp[i][j] == dp[i][j-1] + 1:
-            operations.append(("insert", "-", b[j-1]))
+
+        if j > 0 and dp[i][j] == dp[i][j - 1] + 1:
+            operations.append(("insert", "-", b[j - 1]))
             j -= 1
             continue
-        raise RuntimeError("Backtrace failed: inconsistent DP table")
+
+        raise RuntimeError("Backtrace failed")
 
     operations.reverse()
     return operations, dp[-1][-1]
 
+
+# Dictionary (single-word tokens)
 dictionary = set(allTokens)
 
-def spellCheck(word, k=3, max_dist=2):
+
+def spellCheckWord(word, k=3, max_dist=2):
     candidates = []
 
     for w in dictionary:
@@ -288,50 +303,82 @@ def spellCheck(word, k=3, max_dist=2):
                 "ops": ops
             })
 
-    candidates = sorted(candidates, key=lambda x: x["distance"])
+    candidates.sort(key=lambda x: x["distance"])
     return candidates[:k]
 
 
+def spellCheckPhrase(phrase, k=3, max_dist=4):
+    words = phrase.split()
+    corrected = []
+    all_suggestions = []
+
+    for w in words:
+        suggestions = spellCheckWord(w.lower(), k=k, max_dist=max_dist)
+        if suggestions:
+            best = suggestions[0]["word"]
+            corrected.append(best)
+            all_suggestions.append((w, suggestions))
+        else:
+            corrected.append(w)
+            all_suggestions.append((w, []))
+
+    return " ".join(corrected), all_suggestions
+
+
 def format_ops(ops):
-    formatted = []
+    out = []
     for op in ops:
         if op[0] == "match":
-            formatted.append(op[1])
+            out.append(op[1])
         elif op[0] == "substitute":
-            formatted.append(f"{op[1]}→{op[2]}")
+            out.append(f"{op[1]}→{op[2]}")
         elif op[0] == "insert":
-            formatted.append(f"+{op[2]}")
+            out.append(f"+{op[2]}")
         elif op[0] == "delete":
-            formatted.append(f"-{op[1]}")
-    return " ".join(formatted)
+            out.append(f"-{op[1]}")
+    return " ".join(out)
 
 
-def print_spellcheck(word, correct, suggestions):
-    print(f"Input: '{word}'")
-    print(f"Correct version: {correct}")
-    print("Suggestions:")
+def print_spellcheck_phrase(input_phrase, gold):
+    corrected, suggestions = spellCheckPhrase(input_phrase)
 
-    for i, s in enumerate(suggestions, 1):
-        ops_str = format_ops(s["ops"])
-        print(f"  {i}. {s['word']}  (d={s['distance']})")
-        print(f"     edits: {ops_str}")
+    print(f"Input phrase   : {input_phrase}")
+    print(f"Gold standard  : {gold}")
+    print(f"Corrected text : {corrected}")
+    print("")
 
-print(printer)
+    for word, suggs in suggestions:
+        print(f"Word: '{word}'")
+        if not suggs:
+            print("  No suggestions")
+        else:
+            for i, s in enumerate(suggs, 1):
+                print(f"  {i}. {s['word']} (d={s['distance']})")
+                print(f"     edits: {format_ops(s['ops'])}")
+        print()
+
+print("=" * 50)
 print("5. Spell Checking with Levenshtein Distance")
-print(printer)
+print("=" * 50)
+while True:
+    phrase = input("Enter text (or press Enter to exit): ").strip()
+    if not phrase:
+        break
 
-examples = {
-    "səlam": "salam",
-    "gordum": "gördüm",
-    "kitap": "kitab",
-    "qiz": "qız",
-    "ew": "ev",
-    "qapı": "qapı"
-}
+    corrected, suggestions = spellCheckPhrase(phrase)
 
-for misspelled, correct in examples.items():
-    suggestions = spellCheck(misspelled)
-    print_spellcheck(misspelled, correct, suggestions)
+    print("\nCorrected text:", corrected)
+    print("")
+
+    for word, suggs in suggestions:
+        print(f"Word: '{word}'")
+        if not suggs:
+            print("  No suggestions")
+        else:
+            for i, s in enumerate(suggs, 1):
+                print(f"  {i}. {s['word']} (d={s['distance']})")
+                print(f"     edits: {format_ops(s['ops'])}")
+        print()
 
 # Additional Task
 AZ_ALPHABET = list("abcçdeəfgğhxıijkqlmnoöprsştuüvyz")
@@ -580,4 +627,3 @@ for correct, typo in typoExamples.items():
             best_score = dist
             best_word = word
     print(f"Input: {typo} -> Corrected: {best_word} | Weighted distance: {best_score} | Gold: {correct}")
-    
