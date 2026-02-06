@@ -133,7 +133,7 @@ def mergePair(pair, vocab):
         newVocabulary[newWord] = vocab[word]
     return newVocabulary
 
-def trainBpe(vocab, numMerges=3000):
+def trainBpe(vocab, numMerges=1000):
     merges = []
     for i in range(numMerges):
         pairs = getPairStats(vocab)
